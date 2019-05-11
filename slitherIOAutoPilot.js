@@ -80,7 +80,7 @@ const nearestFood = () => {
 
 const determineHeading = (other) => {
     /**
-     * @description Determines which quadrant we are moving towards.
+     * @description Determines which quadrant the other is in..
      *
      * @returns X and Y.
      */
@@ -113,6 +113,7 @@ const determineIfOnCollisionCourse = (foodHeadingX, foodHeadingY) => {
     // Loop through all of the snakes in the area
     for (let enemy of snakes) {
         let [partHeadingX, partHeadingY] = determineHeading(enemy);
+        // Food and enemy in same quadrant
         if ((partHeadingX == foodHeadingX) && (partHeadingY == foodHeadingY)) {
             let partDistance = distance(enemy);
             if (partDistance <= ENEMY_BAIL_DISTANCE) {
@@ -125,22 +126,6 @@ const determineIfOnCollisionCourse = (foodHeadingX, foodHeadingY) => {
                 }
             }
         }
-        // If enemy part is within out quadrant heading then continue to check
-        // for (let part of enemy.pts) {
-
-        // let [partHeadingX, partHeadingY] = determineHeading(part);
-        // if ((partHeadingX == foodHeadingX) && (partHeadingY == foodHeadingY)) {
-        //     // If distance between us and enemy is less than allowed then
-        //     // turn
-        //     // let [partProjectedX, partProjectedY] = determineProjectedCoordinates(partHeadingX, partHeadingY, MOUSE_SCALAR);
-        //     let partDistance = distance(part);
-        //     if (partDistance <= ENEMY_BAIL_DISTANCE) {
-        //         log(['part distance: ', partDistance]);
-        //         log('Reverse!');
-        //         return true;
-        //     }
-        // }
-        // }
     }
     if (closestEnemy) {
         return determineHeading(closestEnemy);
@@ -184,7 +169,7 @@ const autoPilot = () => {
             if (score > highestScore) {
                 highestScore = score;
                 log('Highest score: ', highestScore);
-                prompt();
+                prompt("Click to continue...");
             } else {
                 play_btn.elem.onclick();
             }
