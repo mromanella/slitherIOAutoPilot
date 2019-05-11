@@ -114,7 +114,7 @@ const determineIfOnCollisionCourse = (foodHeadingX, foodHeadingY) => {
     * @param foodHeadingX
     * @param foodHeadingY
      *
-     * @returns true if on collision course, else false.
+     * @returns x, y if close enemy found. Otherwise false, false.
     */
 
     let closestEnemy = null;
@@ -124,6 +124,7 @@ const determineIfOnCollisionCourse = (foodHeadingX, foodHeadingY) => {
         // Food and enemy in same quadrant
         if ((enemyHeadingX == foodHeadingX) && (enemyHeadingY == foodHeadingY)) {
             let enemyDistance = distance(enemy);
+            // Enemy is within the radius
             if (enemyDistance <= ENEMY_BAIL_DISTANCE) {
                 if (closestEnemy) {
                     if (enemyDistance < distance(closestEnemy)) {
