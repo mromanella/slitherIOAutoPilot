@@ -45,7 +45,7 @@ const updateFoodIDCount = (foodID) => {
 
 const distance = (other) => {
     /**
-     * @description Returns the distance between the snake and the food given.
+     * @description Returns the distance between the snake and other.
      * @param other Other object.
      *
      * @returns The distance as a number.
@@ -120,13 +120,13 @@ const determineIfOnCollisionCourse = (foodHeadingX, foodHeadingY) => {
     let closestEnemy = null;
     // Loop through all of the snakes in the area
     for (let enemy of snakes) {
-        let [partHeadingX, partHeadingY] = determineHeading(enemy);
+        let [enemyHeadingX, enemyHeadingY] = determineHeading(enemy);
         // Food and enemy in same quadrant
-        if ((partHeadingX == foodHeadingX) && (partHeadingY == foodHeadingY)) {
-            let partDistance = distance(enemy);
-            if (partDistance <= ENEMY_BAIL_DISTANCE) {
+        if ((enemyHeadingX == foodHeadingX) && (enemyHeadingY == foodHeadingY)) {
+            let enemyDistance = distance(enemy);
+            if (enemyDistance <= ENEMY_BAIL_DISTANCE) {
                 if (closestEnemy) {
-                    if (partDistance < distance(closestEnemy)) {
+                    if (enemyDistance < distance(closestEnemy)) {
                         closestEnemy = enemy;
                     }
                 } else {
