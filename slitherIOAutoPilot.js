@@ -91,6 +91,14 @@ const determineHeading = (other) => {
 
 
 const determineProjectedCoordinates = (headingX, headingY, mult) => {
+    /**
+     * @description Adds some spacing between the snake and the coordinates for the mouse.
+     * @param headingX
+     * @param headingY
+     * @param mult Scalar to pad
+     *
+     * @returns x and y
+     */
     if (!mult) {
         mult = 1;
     }
