@@ -3,8 +3,8 @@ const TESTING = true;
 const MOUSE_SCALAR = 50;
 const INTERVAL_RATE = 100;
 const FOOD_ID_COUNT_LIMIT = 50;
-const ENEMY_BAIL_DISTANCE = 2200;
-const ONLY_LOOK_IN_FOOD_QUADRANT = true;
+const ENEMY_BAIL_DISTANCE = 800;
+const ONLY_LOOK_IN_FOOD_QUADRANT = false;
 
 let intervalID = null;
 let lastFoodID = 0;
@@ -55,31 +55,7 @@ const distance = (other) => {
         Math.pow(snake.yy - other.yy, 2));
 }
 
-const nearestFood = () => {
-    /**
-     * @description Determines the closest food to the snake.
-     * @returns The nearest food object.
-    */
-    let nearestFood = null;
-    let nearestDistance = 99999999;
-    // Loop through the foods getting the distance to each one
-    for (let food of foods) {
-        // Foods get nulled out
-        if (food) {
-            let dist = distance(food);
-            if (dist < nearestDistance) {
-                nearestFood = food;
-                nearestDistance = dist;
-            }
-        }
-    }
-    if (nearestFood) {
-        updateFoodIDCount(nearestFood.id);
-    }
-    return nearestFood
-}
-
-const determineHeading = (other) => {
+const determineQuadrant = (other) => {
     /**
      * @description Determines which quadrant the other is in..
      *
@@ -90,12 +66,44 @@ const determineHeading = (other) => {
     return [signX, signY];
 }
 
+const nearestFoodQuadrant = (quadX, quadY) => {
+    /**
+     * @description Determines the closest food to the snake.
+     * @params quadX 
+     * @params quadY
+     * @returns The nearest food quadrant x and y. If quadX and Y are 
+     * given then returns
+     * the nearest food object not in that quad.
+    */
+    let nearestFood = null;
+    let nearestDistance = 99999999;
+    // Loop through the foods getting the distance to each one
+    for (let food of foods) {
+        // Foods get nulled out
+        if (food) {
+            let [foodQuadX, foodQuadY] = determineQuadrant(food);
+            if ((quadX && quadY) &&
+                (quadX == foodQuadX && quadY == foodQuadY)) {
+                continue;
+            }
+            let dist = distance(food);
+            if (dist < nearestDistance) {
+                nearestFood = food;
+                nearestDistance = dist;
+            }
+        }
+    }
+    if (nearestFood) {
+        updateFoodIDCount(nearestFood.id);
+    }
+    return determineQuadrant(nearestFood);
+}
 
-const determineProjectedCoordinates = (headingX, headingY, mult) => {
+const determineProjectedCoordinates = (quadX, quadY, mult) => {
     /**
      * @description Adds some spacing between the snake and the coordinates for the mouse.
-     * @param headingX
-     * @param headingY
+     * @param quadX
+     * @param quadY
      * @param mult Scalar to pad
      *
      * @returns x and y
@@ -103,87 +111,82 @@ const determineProjectedCoordinates = (headingX, headingY, mult) => {
     if (!mult) {
         mult = 1;
     }
-    let projectedX = (headingX * mult) + (window.innerWidth / 2);
-    let projectedY = (headingY * mult) + (window.innerHeight / 2);
+    let projectedX = (quadX * mult) + (window.innerWidth / 2);
+    let projectedY = (quadY * mult) + (window.innerHeight / 2);
     return [projectedX, projectedY];
 }
 
-const determineIfOnCollisionCourse = (foodHeadingX, foodHeadingY) => {
+const determineQuadrantWithMostEnemies = () => {
     /**
-     * @description Determines if the coordinates are on an imminent collision
-     * course.
-    * @param foodHeadingX
-    * @param foodHeadingY
-     *
-     * @returns x, y if close enemy found. Otherwise false, false.
+     * @description Determines the quadrant with the most amount of enemies.
+     * @returns x, y of quadrant with the most enemies.
     */
 
-    let closestEnemy = null;
+    let closeEnemies = [];
     // Loop through all of the snakes in the area
     for (let enemy of snakes) {
-        let [enemyHeadingX, enemyHeadingY] = determineHeading(enemy);
-        // If we only want to look in the food quadrant and the enemy is not in 
-        // there then continue on to next enemy 
-        if (ONLY_LOOK_IN_FOOD_QUADRANT && 
-            !((enemyHeadingX == foodHeadingX) && 
-             (enemyHeadingY == foodHeadingY))) {
-            continue;
-        }
-        // Else check
-        let enemyDistance = distance(enemy);
-        // Enemy is within the radius
-        if (enemyDistance <= ENEMY_BAIL_DISTANCE) {
-            if (closestEnemy) {
-                if (enemyDistance < distance(closestEnemy)) {
-                    closestEnemy = enemy;
-                }
-            } else {
-                closestEnemy = enemy;
+        let parts = [enemy, ...enemy.pts];
+        for (let part of parts) {
+            let partDistance = distance(part);
+            // Enemy is within the radius
+            if (partDistance <= ENEMY_BAIL_DISTANCE) {
+                closeEnemies.push(part);
             }
         }
     }
-    if (closestEnemy) {
-        return determineHeading(closestEnemy);
+    if (closeEnemies) {
+        let sumX = 0;
+        let sumY = 0;
+        for (let part of closeEnemies) {
+            sumX += part.xx;
+            sumY += part.yy;
+        }
+        let avgX = sumX / closeEnemies.length;
+        let avgY = sumY / closeEnemies.length;
+        return determineQuadrant({ xx: avgX, yy: avgY });
     }
-    return [false, false];
+    return [null, null];
 }
 
-const decideOptimalHeading = () => {
+const decideOptimalQuadrant = () => {
     /**
-     * @description Determines the correct path to take. If nearest food is
-     * on a collision
-     * course then turn.
+     * @description Determines the correct path to take.
      *
      * @returns X and Y coordinates to take.
     */
-    let food = nearestFood();
-    let [foodHeadingX, foodHeadingY] = determineHeading(food);
-    let [enemyHeadingX, enemyHeadingY] = determineIfOnCollisionCourse(foodHeadingX, foodHeadingY);
-    if (enemyHeadingX && enemyHeadingY) {
-        // turn out of there
-        log(['Enemy close: ', -enemyHeadingX, -enemyHeadingY]);
-        return [-enemyHeadingX, -enemyHeadingY];
+    let [quadX, quadY] = determineQuadrantWithMostEnemies();
+    let [foodQuadX, foodQuadY] = nearestFoodQuadrant(quadX, quadY);
+    log(['quad with most enemies: ', quadX, quadY]);
+    log(['going to quad: ', foodQuadX, foodQuadY]);
+    return [foodQuadX, foodQuadY];
+}
+
+const drawMousePointer = (x, y, color) => {
+    if (!color) {
+        color = 'white';
     }
-    // Otherwise continue forward
-    return [foodHeadingX, foodHeadingY];
+    ctx.beginPath();
+    ctx.fillstyle = color;
+    ctx.arc(x, y, 50, 0, 2 * Math.PI);
+    ctx.fill();
 }
 
 const autoPilot = () => {
     if (playing) {
-        let [optimalHeadingX, optimalHeadingY] = decideOptimalHeading();
+        let [optimalQuadX, optimalQuadY] = decideOptimalQuadrant();
         let [projectedX, projectedY] = determineProjectedCoordinates(
-            optimalHeadingX, optimalHeadingY, MOUSE_SCALAR);
+            optimalQuadX, optimalQuadY, MOUSE_SCALAR);
 
         let mousemove = new MouseEvent('mousemove',
             { clientX: projectedX, clientY: projectedY });
+        drawMousePointer(projectedX, projectedY);
         dispatchEvent(mousemove);
-        log(['Mouse to: ', projectedX, projectedY]);
     } else {
         if (lastscore) {
             let score = Number(lastscore.innerText.split(' ')[lastscore.innerText.split(' ').length - 1]);
             if (score > highestScore) {
                 highestScore = score;
-                log('Highest score: ', highestScore);
+                log(['Highest score: ', highestScore]);
                 prompt("Click to continue...");
             } else {
                 play_btn.elem.onclick();
