@@ -4,6 +4,7 @@ const MOUSE_SCALAR = 50;
 const INTERVAL_RATE = 100;
 const FOOD_ID_COUNT_LIMIT = 50;
 const ENEMY_BAIL_DISTANCE = 2200;
+const ONLY_LOOK_IN_FOOD_QUADRANT = true;
 
 let intervalID = null;
 let lastFoodID = 0;
@@ -121,18 +122,23 @@ const determineIfOnCollisionCourse = (foodHeadingX, foodHeadingY) => {
     // Loop through all of the snakes in the area
     for (let enemy of snakes) {
         let [enemyHeadingX, enemyHeadingY] = determineHeading(enemy);
-        // Food and enemy in same quadrant
-        if ((enemyHeadingX == foodHeadingX) && (enemyHeadingY == foodHeadingY)) {
-            let enemyDistance = distance(enemy);
-            // Enemy is within the radius
-            if (enemyDistance <= ENEMY_BAIL_DISTANCE) {
-                if (closestEnemy) {
-                    if (enemyDistance < distance(closestEnemy)) {
-                        closestEnemy = enemy;
-                    }
-                } else {
+        // If we only want to look in the food quadrant and the enemy is not in 
+        // there then continue on to next enemy 
+        if (ONLY_LOOK_IN_FOOD_QUADRANT && 
+            !((enemyHeadingX == foodHeadingX) && 
+             (enemyHeadingY == foodHeadingY))) {
+            continue;
+        }
+        // Else check
+        let enemyDistance = distance(enemy);
+        // Enemy is within the radius
+        if (enemyDistance <= ENEMY_BAIL_DISTANCE) {
+            if (closestEnemy) {
+                if (enemyDistance < distance(closestEnemy)) {
                     closestEnemy = enemy;
                 }
+            } else {
+                closestEnemy = enemy;
             }
         }
     }
