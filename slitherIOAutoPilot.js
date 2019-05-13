@@ -3,7 +3,7 @@ const TESTING = true;
 const MOUSE_SCALAR = 50;
 const INTERVAL_RATE = 100;
 const FOOD_ID_COUNT_LIMIT = 50;
-const ENEMY_BAIL_DISTANCE = 800;
+const ENEMY_BAIL_DISTANCE = 2200;
 
 let intervalID = null;
 let lastFoodID = 0;
