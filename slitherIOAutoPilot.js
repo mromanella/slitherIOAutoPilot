@@ -65,7 +65,7 @@ class SlitherIOAutoPilot {
 
     updateFoodIDCount = (foodID) => {
         if (foodID == this.lastFoodID) {
-            if (this.foodIDCount > this.food_id_count_limit) {
+            if (this.foodIDCount > this.foodIdCountLimit) {
                 this.foodIDCount = 0;
                 this.log('Caught in circle');
                 this.boost();
@@ -166,11 +166,11 @@ class SlitherIOAutoPilot {
             let parts = [enemy, ...enemy.pts];
             for (let part of parts) {
                 let partDistance = this.distance(part);
-                if (partDistance <= this.critical_distance) {
+                if (partDistance <= this.criticalDistance) {
                     return [...this.determineQuadrant(part), true];
                 }
                 // Enemy is within the radius
-                if (partDistance <= this.keep_away_distance) {
+                if (partDistance <= this.keepAwayDistance) {
                     closeEnemies.push(part);
                 }
             }
@@ -217,7 +217,7 @@ class SlitherIOAutoPilot {
                 { clientX: projectedX, clientY: projectedY });
             dispatchEvent(mousemove);
             if (shouldBoost) {
-                this.boost(this.boost_duration);
+                this.boost(this.boostDuration);
             }
         } else {
             if (lastscore) {
@@ -243,7 +243,7 @@ class SlitherIOAutoPilot {
             this.stopAutoPilot();
         }
         play_btn.elem.onclick();
-        this.intervalID = setInterval(this.autoPilot, this.interval_rate);
+        this.intervalID = setInterval(this.autoPilot, this.intervalRate);
         return this;
     }
 }
