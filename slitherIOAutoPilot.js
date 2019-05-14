@@ -223,6 +223,10 @@ class SlitherIOAutoPilot {
             if (lastscore) {
                 this.lastScore = Number(lastscore.innerText.split(' ')[lastscore.innerText.split(' ').length - 1]);
                 this.stopAutoPilot();
+                if (this.lastScore > this.highestScore) {
+                    this.highestScore = this.lastScore;   
+                }
+                
                 if (this.autoRestart) {
                     this.startAutoPilot();
                 }
