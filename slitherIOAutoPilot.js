@@ -1,4 +1,4 @@
-const MOUSE_SCALAR = 50;
+const MOUSE_SCALAR = 200;
 
 const test = 'test';
 const autoRestart = 'autoRestart';
@@ -14,13 +14,14 @@ let props = [foodIdCountLimit,
     boostDuration]
 
 let config = {
-    test: false,
+    test: true,
     autoRestart: true,
-    intervalRate: 100,
-    foodIdCountLimit: 50,
-    keepAwayDistance: 600,
-    criticalDistance: 225,
-    boostDuration: 1200,
+    intervalRate: 50,
+    foodIdCountLimit: 75,
+    keepAwayDistance: 0,
+    criticalDistance: 300,
+    boostOnCrit: false,
+    boostDuration: 750,
 }
 
 let minMaxConfig = {
@@ -40,8 +41,7 @@ class SlitherIOAutoPilot {
     constructor(config) {
         Object.assign(this, config);
         this.intervalID = null;
-        this.lastFoodID = 0;
-        this.foodIDCount = 0;
+        this.foodCounts = {};
         this.highestScore = 0;
         this.lastScore = 0;
     }
@@ -64,18 +64,15 @@ class SlitherIOAutoPilot {
     }
 
     updateFoodIDCount = (foodID) => {
-        if (foodID == this.lastFoodID) {
-            if (this.foodIDCount > this.foodIdCountLimit) {
-                this.foodIDCount = 0;
-                this.log('Caught in circle');
-                this.boost();
-            } else {
-                this.foodIDCount++;
-            }
-        } else {
-            this.foodIDCount = 0;
+        if (!this.foodCounts.hasOwnProperty(foodID)) {
+            this.foodCounts[foodID] = 0;
         }
-        this.lastFoodID = foodID;
+        this.foodCounts[foodID]++;
+
+        if (this.foodCounts[foodID] > this.foodIdCountLimit) {
+            delete this.foodCounts[foodID];
+            this.boost(this.boostDuration);
+        }
     }
 
     distance = (other) => {
@@ -100,7 +97,7 @@ class SlitherIOAutoPilot {
         return [signX, signY];
     }
 
-    nearestFoodQuadrant = (quadX, quadY) => {
+    determineQuadrantWithNearestFood = (quadX, quadY) => {
         /**
          * @description Determines the closest food to the snake.
          * @params quadX
@@ -110,20 +107,24 @@ class SlitherIOAutoPilot {
          * the nearest food object not in that quad.
         */
         let nearestFood = null;
+        let nearestFoodSize = 0;
         let nearestDistance = 99999999;
         // Loop through the foods getting the distance to each one
         for (let food of foods) {
             // Foods get nulled out
             if (food) {
                 let [foodQuadX, foodQuadY] = this.determineQuadrant(food);
+                // If the food is within the quadrant with the most enemies then
+                // ignore it
                 if ((quadX && quadY) &&
                     (quadX == foodQuadX && quadY == foodQuadY)) {
                     continue;
                 }
                 let dist = this.distance(food);
-                if (dist < nearestDistance) {
+                if (dist < nearestDistance && food.rad >= nearestFoodSize) {
                     nearestFood = food;
                     nearestDistance = dist;
+                    nearestFoodSize = food.rad;
                 }
             }
         }
@@ -150,13 +151,15 @@ class SlitherIOAutoPilot {
         return [projectedX, projectedY];
     }
 
-    determineQuadrantWithMostEnemies = () => {
+    determineQuadrantWithClosestEnemy = () => {
         /**
-         * @description Determines the quadrant with the most amount of enemies.
-         * @returns x, y of quadrant with the most enemies.
+         * @description Determines the quadrant with the closest enemy.
+         * @returns x, y of quadrant with the most enemies. Bool denoting whether an enemy
+         * was found within the critical radius.
         */
 
         let closeEnemies = [];
+        let criticalEnemies = [];
         // Loop through all of the snakes in the area
         for (let enemy of snakes) {
             // We are in the snakes array, don't want to count ourselves
@@ -167,7 +170,7 @@ class SlitherIOAutoPilot {
             for (let part of parts) {
                 let partDistance = this.distance(part);
                 if (partDistance <= this.criticalDistance) {
-                    return [...this.determineQuadrant(part), true];
+                    criticalEnemies.push(part);
                 }
                 // Enemy is within the radius
                 if (partDistance <= this.keepAwayDistance) {
@@ -175,16 +178,47 @@ class SlitherIOAutoPilot {
                 }
             }
         }
-        if (closeEnemies) {
-            let sumX = 0;
-            let sumY = 0;
-            for (let part of closeEnemies) {
-                sumX += part.xx;
-                sumY += part.yy;
+        if (criticalEnemies.length > 0) {
+            console.log(criticalEnemies.length)
+            if (criticalEnemies.length > 1) {
+                criticalEnemies.sort((a, b) => {
+                    let distA = this.distance(a);
+                    let distB = this.distance(b);
+                    if (distA < distB) {
+                        return -1;
+                    } else if (distA > distB) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
             }
-            let avgX = sumX / closeEnemies.length;
-            let avgY = sumY / closeEnemies.length;
-            return [...this.determineQuadrant({ xx: avgX, yy: avgY }), false];
+            return [...this.determineQuadrant({ xx: criticalEnemies[0].xx, yy: criticalEnemies[0].yy }), true];
+        }
+
+        if (closeEnemies.length > 0) {
+            // let sumX = 0;
+            // let sumY = 0;
+            // for (let part of closeEnemies) {
+            //     sumX += part.xx;
+            //     sumY += part.yy;
+            // }
+            // let avgX = sumX / closeEnemies.length;
+            // let avgY = sumY / closeEnemies.length;
+            if (closeEnemies.length > 1) {
+                closeEnemies.sort((a, b) => {
+                    let distA = this.distance(a);
+                    let distB = this.distance(b);
+                    if (distA < distB) {
+                        return -1;
+                    } else if (distA > distB) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
+            }
+            return [...this.determineQuadrant({ xx: closeEnemies[0].xx, yy: closeEnemies[0].yy }), false];
         }
         return [null, null, false];
     }
@@ -195,13 +229,13 @@ class SlitherIOAutoPilot {
          *
          * @returns X and Y coordinates to take.
         */
-        let [quadX, quadY, withinCrit] = this.determineQuadrantWithMostEnemies();
+        let [quadX, quadY, withinCrit] = this.determineQuadrantWithClosestEnemy();
         if (withinCrit) {
             this.log(['within critical']);
             return [-quadX, -quadY, true];
         }
 
-        let [foodQuadX, foodQuadY] = this.nearestFoodQuadrant(quadX, quadY);
+        let [foodQuadX, foodQuadY] = this.determineQuadrantWithNearestFood(quadX, quadY);
         this.log(['quad with most enemies: ', quadX, quadY]);
         this.log(['going to quad: ', foodQuadX, foodQuadY]);
         return [foodQuadX, foodQuadY, false];
@@ -216,25 +250,25 @@ class SlitherIOAutoPilot {
             let mousemove = new MouseEvent('mousemove',
                 { clientX: projectedX, clientY: projectedY });
             dispatchEvent(mousemove);
-            if (shouldBoost) {
+            if (this.boostOnCrit && shouldBoost) {
                 this.boost(this.boostDuration);
             }
         } else {
             if (lastscore) {
                 this.lastScore = Number(lastscore.innerText.split(' ')[lastscore.innerText.split(' ').length - 1]);
-                this.stopAutoPilot();
+                this.stop();
                 if (this.lastScore > this.highestScore) {
-                    this.highestScore = this.lastScore;   
+                    this.highestScore = this.lastScore;
                 }
-                
+
                 if (this.autoRestart) {
-                    this.startAutoPilot();
+                    this.start();
                 }
             }
         }
     }
 
-    stopAutoPilot = () => {
+    stop = () => {
         if (this.intervalID) {
             clearInterval(this.intervalID);
         }
@@ -242,9 +276,9 @@ class SlitherIOAutoPilot {
         return this;
     }
 
-    startAutoPilot = () => {
+    start = () => {
         if (this.intervalID) {
-            this.stopAutoPilot();
+            this.stop();
         }
         play_btn.elem.onclick();
         this.intervalID = setInterval(this.autoPilot, this.intervalRate);
@@ -252,4 +286,4 @@ class SlitherIOAutoPilot {
     }
 }
 
-let ap = new SlitherIOAutoPilot(config).startAutoPilot();
+let ap = new SlitherIOAutoPilot(config).start();
