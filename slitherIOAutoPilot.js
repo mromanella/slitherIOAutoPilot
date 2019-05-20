@@ -14,14 +14,19 @@ let props = [foodIdCountLimit,
     boostDuration]
 
 let config = {
-    test: true,
+    test: false,
     autoRestart: true,
     intervalRate: 50,
     foodIdCountLimit: 75,
-    keepAwayDistance: 0,
-    criticalDistance: 300,
+    keepAwayDistance: 400,
+    criticalDistance: 100,
     boostOnCrit: false,
-    boostDuration: 750,
+    boostOnLargeFood: true,
+    boostOnLargeFoodDistance: 100,
+    boostOnLargeFoodSize: 100,
+    foodPrioritySize: 50,
+    foodPriorityDistance: 75,
+    boostDuration: 750
 }
 
 let minMaxConfig = {
@@ -39,7 +44,19 @@ const randomValue = (min, max) => {
 class SlitherIOAutoPilot {
 
     constructor(config) {
-        Object.assign(this, config);
+        this.test = config.test;
+        this.autoRestart = config.autoRestart;
+        this.intervalRate = config.intervalRate;
+        this.foodIdCountLimit = config.foodIdCountLimit;
+        this.keepAwayDistance = config.keepAwayDistance;
+        this.criticalDistance = config.criticalDistance;
+        this.boostOnCrit = config.boostOnCrit;
+        this.boostOnLargeFood = config.boostOnLargeFood;
+        this.boostOnLargeFoodDistance = config.boostOnLargeFoodDistance;
+        this.boostOnLargeFoodSize = config.boostOnLargeFoodSize;
+        this.foodPrioritySize = config.foodPrioritySize
+        this.foodPriorityDistance = config.foodPriorityDistance;
+        this.boostDuration = config.boostDuration;
         this.intervalID = null;
         this.foodCounts = {};
         this.highestScore = 0;
@@ -97,17 +114,16 @@ class SlitherIOAutoPilot {
         return [signX, signY];
     }
 
-    determineQuadrantWithNearestFood = (quadX, quadY) => {
+    getNearestFood = (quadX, quadY) => {
         /**
          * @description Determines the closest food to the snake.
          * @params quadX
          * @params quadY
-         * @returns The nearest food quadrant x and y. If quadX and Y are
+         * @returns The nearest food. If quadX and Y are
          * given then returns
          * the nearest food object not in that quad.
         */
         let nearestFood = null;
-        let nearestFoodSize = 0;
         let nearestDistance = 99999999;
         // Loop through the foods getting the distance to each one
         for (let food of foods) {
@@ -120,18 +136,44 @@ class SlitherIOAutoPilot {
                     (quadX == foodQuadX && quadY == foodQuadY)) {
                     continue;
                 }
-                let dist = this.distance(food);
-                if (dist < nearestDistance && food.rad >= nearestFoodSize) {
+                let foodDist = this.distance(food);
+                let foodSize = (food.fw * food.rad)
+                if (this.boostOnLargeFood && (foodSize >= this.boostOnLargeFoodSize) &&
+                    (foodDist <= this.boostOnLargeFoodDistance)) {
+                    // We want to boost towards large foods
+                    // Return early
+                    return [food, true]
+                }
+
+                if ((foodDist <= this.foodPriorityDistance) &&
+                    (foodSize >= this.foodPrioritySize)) {
+                    // There is a mid sized food lets go to it
+                    return [food, false]
+                }
+
+                // go to everything else
+                if (foodDist <= nearestDistance) {
                     nearestFood = food;
-                    nearestDistance = dist;
-                    nearestFoodSize = food.rad;
+                    nearestDistance = foodDist;
                 }
             }
         }
-        if (nearestFood) {
-            this.updateFoodIDCount(nearestFood.id);
-        }
-        return this.determineQuadrant(nearestFood);
+        return [nearestFood, false];
+    }
+
+    determineQuadrantWithNearestFood = (quadX, quadY) => {
+        /**
+         * @description Determines the closest food to the snake.
+         * @params quadX
+         * @params quadY
+         * @returns The nearest food quadrant x and y. If quadX and Y are
+         * given then returns
+         * the nearest food object not in that quad.
+        */
+
+        let [nearestFood, shouldBoost] = this.getNearestFood(quadX, quadY);
+        this.updateFoodIDCount(nearestFood.id);
+        return [...this.determineQuadrant(nearestFood), shouldBoost];
     }
 
     determineProjectedCoordinates = (quadX, quadY, mult) => {
@@ -179,7 +221,6 @@ class SlitherIOAutoPilot {
             }
         }
         if (criticalEnemies.length > 0) {
-            console.log(criticalEnemies.length)
             if (criticalEnemies.length > 1) {
                 criticalEnemies.sort((a, b) => {
                     let distA = this.distance(a);
@@ -197,14 +238,6 @@ class SlitherIOAutoPilot {
         }
 
         if (closeEnemies.length > 0) {
-            // let sumX = 0;
-            // let sumY = 0;
-            // for (let part of closeEnemies) {
-            //     sumX += part.xx;
-            //     sumY += part.yy;
-            // }
-            // let avgX = sumX / closeEnemies.length;
-            // let avgY = sumY / closeEnemies.length;
             if (closeEnemies.length > 1) {
                 closeEnemies.sort((a, b) => {
                     let distA = this.distance(a);
@@ -235,10 +268,10 @@ class SlitherIOAutoPilot {
             return [-quadX, -quadY, true];
         }
 
-        let [foodQuadX, foodQuadY] = this.determineQuadrantWithNearestFood(quadX, quadY);
-        this.log(['quad with most enemies: ', quadX, quadY]);
+        let [foodQuadX, foodQuadY, shouldBoost] = this.determineQuadrantWithNearestFood(quadX, quadY);
+        this.log(['quad with nearest enemy: ', quadX, quadY]);
         this.log(['going to quad: ', foodQuadX, foodQuadY]);
-        return [foodQuadX, foodQuadY, false];
+        return [foodQuadX, foodQuadY, shouldBoost];
     }
 
     autoPilot = () => {
@@ -250,7 +283,7 @@ class SlitherIOAutoPilot {
             let mousemove = new MouseEvent('mousemove',
                 { clientX: projectedX, clientY: projectedY });
             dispatchEvent(mousemove);
-            if (this.boostOnCrit && shouldBoost) {
+            if (shouldBoost) {
                 this.boost(this.boostDuration);
             }
         } else {
