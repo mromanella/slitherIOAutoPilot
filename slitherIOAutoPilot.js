@@ -18,14 +18,14 @@ let config = {
     autoRestart: true,
     intervalRate: 50,
     foodIdCountLimit: 75,
-    keepAwayDistance: 400,
+    keepAwayDistance: 0,
     criticalDistance: 100,
     boostOnCrit: false,
     boostOnLargeFood: true,
-    boostOnLargeFoodDistance: 100,
-    boostOnLargeFoodSize: 100,
+    boostOnLargeFoodDistance: 300,
+    boostOnLargeFoodSize: 75,
     foodPrioritySize: 50,
-    foodPriorityDistance: 75,
+    foodPriorityDistance: 200,
     boostDuration: 750
 }
 
