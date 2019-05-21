@@ -88,6 +88,7 @@ class SlitherIOAutoPilot {
 
         if (this.foodCounts[foodID] > this.foodIdCountLimit) {
             delete this.foodCounts[foodID];
+            log('spinning wheels');
             this.boost(this.boostDuration);
         }
     }
