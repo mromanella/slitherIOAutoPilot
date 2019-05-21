@@ -14,7 +14,7 @@ let props = [foodIdCountLimit,
     boostDuration]
 
 let config = {
-    test: false,
+    test: true,
     autoRestart: true,
     intervalRate: 50,
     foodIdCountLimit: 75,
@@ -22,10 +22,10 @@ let config = {
     criticalDistance: 100,
     boostOnCrit: false,
     boostOnLargeFood: true,
-    boostOnLargeFoodDistance: 300,
-    boostOnLargeFoodSize: 75,
+    boostOnLargeFoodDistance: 500,
+    boostOnLargeFoodSize: 100,
     foodPrioritySize: 50,
-    foodPriorityDistance: 200,
+    foodPriorityDistance: 300,
     boostDuration: 750
 }
 
@@ -123,8 +123,9 @@ class SlitherIOAutoPilot {
          * given then returns
          * the nearest food object not in that quad.
         */
-        let nearestFood = null;
-        let nearestDistance = 99999999;
+        let nearestFood = { food: null, dist: 99999999 };
+        let nearestLarge = { food: null, dist: 99999999, size: 0 };
+        let nearestPriority = { food: null, dist: 99999999, size: 0 };
         // Loop through the foods getting the distance to each one
         for (let food of foods) {
             // Foods get nulled out
@@ -138,27 +139,41 @@ class SlitherIOAutoPilot {
                 }
                 let foodDist = this.distance(food);
                 let foodSize = (food.fw * food.rad)
-                if (this.boostOnLargeFood && (foodSize >= this.boostOnLargeFoodSize) &&
-                    (foodDist <= this.boostOnLargeFoodDistance)) {
-                    // We want to boost towards large foods
-                    // Return early
-                    return [food, true]
+                if ((foodSize >= this.boostOnLargeFoodSize) &&
+                    (foodDist <= this.boostOnLargeFoodDistance) &&
+                    (foodSize >= nearestLarge.size)) {
+                    nearestLarge.food = food;
+                    nearestLarge.dist = foodDist;
+                    nearestLarge.size = foodSize;
                 }
 
                 if ((foodDist <= this.foodPriorityDistance) &&
-                    (foodSize >= this.foodPrioritySize)) {
-                    // There is a mid sized food lets go to it
-                    return [food, false]
+                    (foodSize >= this.foodPrioritySize) &&
+                    (foodSize >= nearestPriority.size)) {
+                    nearestPriority.food = food;
+                    nearestPriority.dist = foodDist;
+                    nearestPriority.size = foodSize;
                 }
 
                 // go to everything else
-                if (foodDist <= nearestDistance) {
-                    nearestFood = food;
-                    nearestDistance = foodDist;
+                if (foodDist <= nearestFood.dist) {
+                    nearestFood.food = food;
+                    nearestFood.dist = foodDist;
                 }
             }
         }
-        return [nearestFood, false];
+
+        // Large foods first
+        if (nearestLarge.food) {
+            this.log('large food');
+            return [nearestLarge.food, true];
+        }
+        if (nearestPriority.food) {
+            this.log('priority food');
+            return [nearestPriority.food, false];
+        }
+        this.log('nearest food');
+        return [nearestFood.food, false];
     }
 
     determineQuadrantWithNearestFood = (quadX, quadY) => {
@@ -171,9 +186,9 @@ class SlitherIOAutoPilot {
          * the nearest food object not in that quad.
         */
 
-        let [nearestFood, shouldBoost] = this.getNearestFood(quadX, quadY);
+        let [nearestFood, withinLargeFoodDistance] = this.getNearestFood(quadX, quadY);
         this.updateFoodIDCount(nearestFood.id);
-        return [...this.determineQuadrant(nearestFood), shouldBoost];
+        return [...this.determineQuadrant(nearestFood), withinLargeFoodDistance];
     }
 
     determineProjectedCoordinates = (quadX, quadY, mult) => {
@@ -234,7 +249,10 @@ class SlitherIOAutoPilot {
                     }
                 });
             }
-            return [...this.determineQuadrant({ xx: criticalEnemies[0].xx, yy: criticalEnemies[0].yy }), true];
+            return [...this.determineQuadrant({
+                xx: criticalEnemies[0].xx,
+                yy: criticalEnemies[0].yy
+            }), true];
         }
 
         if (closeEnemies.length > 0) {
@@ -251,7 +269,10 @@ class SlitherIOAutoPilot {
                     }
                 });
             }
-            return [...this.determineQuadrant({ xx: closeEnemies[0].xx, yy: closeEnemies[0].yy }), false];
+            return [...this.determineQuadrant({
+                xx: closeEnemies[0].xx,
+                yy: closeEnemies[0].yy
+            }), false];
         }
         return [null, null, false];
     }
@@ -265,13 +286,11 @@ class SlitherIOAutoPilot {
         let [quadX, quadY, withinCrit] = this.determineQuadrantWithClosestEnemy();
         if (withinCrit) {
             this.log(['within critical']);
-            return [-quadX, -quadY, true];
+            return [-quadX, -quadY, this.boostOnCrit];
         }
 
-        let [foodQuadX, foodQuadY, shouldBoost] = this.determineQuadrantWithNearestFood(quadX, quadY);
-        this.log(['quad with nearest enemy: ', quadX, quadY]);
-        this.log(['going to quad: ', foodQuadX, foodQuadY]);
-        return [foodQuadX, foodQuadY, shouldBoost];
+        let [foodQuadX, foodQuadY, withinLargeFoodDistance] = this.determineQuadrantWithNearestFood(quadX, quadY);
+        return [foodQuadX, foodQuadY, (this.boostOnLargeFood && withinLargeFoodDistance)];
     }
 
     autoPilot = () => {
@@ -295,6 +314,7 @@ class SlitherIOAutoPilot {
                 }
 
                 if (this.autoRestart) {
+                    this.foodCounts = {};
                     this.start();
                 }
             }
