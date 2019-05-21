@@ -23,7 +23,7 @@ let config = {
     boostOnCrit: false,
     boostOnLargeFood: true,
     boostOnLargeFoodDistance: 500,
-    boostOnLargeFoodSize: 100,
+    boostOnLargeFoodSize: 75,
     foodPrioritySize: 50,
     foodPriorityDistance: 300,
     boostDuration: 750
@@ -145,20 +145,17 @@ class SlitherIOAutoPilot {
                     nearestLarge.food = food;
                     nearestLarge.dist = foodDist;
                     nearestLarge.size = foodSize;
-                }
-
-                if ((foodDist <= this.foodPriorityDistance) &&
+                } else if ((foodDist <= this.foodPriorityDistance) &&
                     (foodSize >= this.foodPrioritySize) &&
                     (foodSize >= nearestPriority.size)) {
                     nearestPriority.food = food;
                     nearestPriority.dist = foodDist;
                     nearestPriority.size = foodSize;
-                }
-
-                // go to everything else
-                if (foodDist <= nearestFood.dist) {
-                    nearestFood.food = food;
-                    nearestFood.dist = foodDist;
+                } else {
+                    if (foodDist <= nearestFood.dist) {
+                        nearestFood.food = food;
+                        nearestFood.dist = foodDist;
+                    }
                 }
             }
         }
