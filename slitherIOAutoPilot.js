@@ -19,13 +19,13 @@ let config = {
     intervalRate: 50,
     foodIdCountLimit: 75,
     keepAwayDistance: 0,
-    criticalDistance: 100,
+    criticalDistance: 300,
     boostOnCrit: false,
     boostOnLargeFood: true,
-    boostOnLargeFoodDistance: 500,
+    boostOnLargeFoodDistance: 300,
     boostOnLargeFoodSize: 75,
     foodPrioritySize: 50,
-    foodPriorityDistance: 300,
+    foodPriorityDistance: 500,
     boostDuration: 750
 }
 
